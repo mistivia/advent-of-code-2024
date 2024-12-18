@@ -64,25 +64,62 @@ proc turn_right {direction} {
     }
 }
 
+
 proc next_state {x y direction} {
     set forward [front_point $x $y $direction]
     if {[out_of_range {*}$forward]} {
         return [list {*}$forward $direction]
     }
-    if {[char_at {*}$forward] == {#}} {
+    while {[char_at {*}$forward] == {#}} {
         set forward [front_point $x $y [turn_right $direction]]
-        return [list {*}$forward [turn_right $direction]]
-    } else {
-        return [list {*}$forward $direction]
+        set direction [turn_right $direction]
+    }
+    return [list {*}$forward $direction]
+}
+
+
+proc will_loop {} {
+    global start_point
+    set state [list {*}$start_point up]
+    set past_states {}
+    while {1} {
+        if {[out_of_range {*}[lrange $state 0 1]]} {
+            return 0
+        }
+        if {[dict exists $past_states $state]} {
+            return 1
+        }
+        dict set past_states $state { }
+        set state [next_state {*}$state]
+    }    
+}
+
+proc set_obstruction {x y} {
+    global map
+    set orig_line [lindex $map $y]
+    lset map $y [string replace $orig_line $x $x "#"]
+}
+
+proc clear_obstruction {x y} {
+    global map
+    set orig_line [lindex $map $y]
+    lset map $y [string replace $orig_line $x $x "."]
+}
+
+set count 0
+for {set i 0} {$i < $width} {incr i} {
+    for {set j 0} {$j < $height} {incr j} {
+        if {[char_at $i $j] == "^"} {
+            continue
+        }
+        if {[char_at $i $j] == "#"} {
+            continue
+        }
+        set_obstruction $i $j
+        if {[will_loop]} {
+            set count [expr {$count + 1}]
+        }
+        clear_obstruction $i $j
     }
 }
-
-set state [list {*}$start_point up]
-set visited {}
-
-while {![out_of_range {*}[lrange $state 0 1]]} {
-    dict set visited [lrange $state 0 1] {}
-    set state [next_state {*}$state]
-}
-
-puts [dict size $visited]
+puts $count
